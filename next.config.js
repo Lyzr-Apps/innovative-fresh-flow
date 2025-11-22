@@ -24,6 +24,9 @@ const nextConfig = {
     // Add experimental features here if needed
   },
 
+  // Disable static page generation for problematic pages
+  staticPageGenerationTimeout: 0,
+
   // Configure headers for security and iframe embedding
   async headers() {
     return [
