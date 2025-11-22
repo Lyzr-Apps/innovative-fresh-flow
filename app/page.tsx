@@ -889,6 +889,101 @@ function groupTasks(
   return grouped
 }
 
+// Connection Status Component
+function ConnectionStatus() {
+  const [status, setStatus] = useState<'checking' | 'connected' | 'disconnected' | 'error'>('checking')
+  const [detailsOpen, setDetailsOpen] = useState(false)
+  const [details, setDetails] = useState<any>(null)
+
+  const checkConnection = async () => {
+    setStatus('checking')
+    try {
+      const response = await fetch('/api/test-agent')
+      const data = await response.json()
+      setDetails(data)
+      setStatus(data.success ? 'connected' : 'error')
+    } catch (error) {
+      setStatus('error')
+      setDetails({ error: error instanceof Error ? error.message : String(error) })
+    }
+  }
+
+  return (
+    <>
+      <button
+        onClick={() => {
+          checkConnection()
+          setDetailsOpen(true)
+        }}
+        className="inline-flex items-center gap-2 px-3 py-2 text-sm border rounded-md hover:bg-gray-100"
+      >
+        <Zap className="h-4 w-4" />
+        {status === 'checking' && 'Testing...'}
+        {status === 'connected' && 'Connected'}
+        {status === 'disconnected' && 'Disconnected'}
+        {status === 'error' && 'Connection Error'}
+      </button>
+
+      <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Notion Connection Status</DialogTitle>
+            <DialogDescription>Test connection to Lyzr agents and Notion database</DialogDescription>
+          </DialogHeader>
+          {details && (
+            <div className="space-y-4">
+              <div className={`p-3 rounded border ${status === 'connected' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                <p className={`text-sm font-medium ${status === 'connected' ? 'text-green-900' : 'text-red-900'}`}>
+                  {status === 'connected' ? 'Agents Connected Successfully' : 'Connection Failed'}
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <p className="text-sm font-medium">API Key Configured:</p>
+                  <p className="text-sm text-gray-600">{details.apiKeyConfigured ? 'Yes' : 'No'}</p>
+                </div>
+
+                {details.agents && Object.entries(details.agents).map(([agentId, agentData]: [string, any]) => (
+                  <div key={agentId} className="p-3 border rounded-lg">
+                    <p className="text-sm font-medium">{agentData.agentName}</p>
+                    <div className="mt-2 space-y-1 text-xs text-gray-600">
+                      <p>Status: <span className={agentData.status === 'connected' ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>{agentData.status}</span></p>
+                      {agentData.statusCode && <p>HTTP Status: {agentData.statusCode}</p>}
+                      {agentData.error && <p className="text-red-600">Error: {agentData.error}</p>}
+                      {agentData.responsePreview && (
+                        <details className="cursor-pointer">
+                          <summary>Response Preview</summary>
+                          <pre className="mt-2 p-2 bg-gray-100 rounded text-xs overflow-x-auto max-h-[200px] overflow-y-auto">
+                            {agentData.responsePreview}
+                          </pre>
+                        </details>
+                      )}
+                    </div>
+                  </div>
+                ))}
+
+                {details.error && (
+                  <div className="p-3 border border-red-200 rounded-lg bg-red-50">
+                    <p className="text-sm text-red-900 font-medium">Error:</p>
+                    <p className="text-sm text-red-700 mt-1">{details.error}</p>
+                    <p className="text-xs text-red-600 mt-2">{details.details}</p>
+                  </div>
+                )}
+              </div>
+
+              <Button onClick={checkConnection} className="w-full">
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Retry Connection
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
+
 // Main App Component
 export default function HomePage() {
   const [tasks, setTasks] = useState<Task[]>([
@@ -1008,10 +1103,13 @@ export default function HomePage() {
             <h1 className="text-4xl font-bold text-gray-900">Task Management System</h1>
             <p className="text-gray-600 mt-2">{syncStatus}</p>
           </div>
-          <Button onClick={handleSync} variant="outline" size="lg">
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Sync
-          </Button>
+          <div className="flex gap-3">
+            <ConnectionStatus />
+            <Button onClick={handleSync} variant="outline" size="lg">
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Sync
+            </Button>
+          </div>
         </div>
 
         <Dashboard
