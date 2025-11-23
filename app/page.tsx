@@ -55,6 +55,7 @@ interface Meeting {
 
 // Mock data and utilities
 const AGENTS = {
+  MANAGER: '69235d3623b88b385103da57',                    // Central orchestrator
   SESSION_SYNC: '69222c62c69ec8d9a07826da',
   TASK_COLLECTION: '69222c7423b88b385103d6f5',
   TASK_UPDATE: '69222c87eb6b7de42273d8c1',
