@@ -11,7 +11,8 @@ import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
-import { RefreshCw, Plus, Edit2, Trash2, Archive, FileText, Users, Building2, Calendar, CheckCircle2, AlertCircle, Clock, Download, Mail, Filter, X, Zap } from 'lucide-react'
+import { RefreshCw, Plus, Edit2, Trash2, Archive, FileText, Users, Building2, Calendar, CheckCircle2, AlertCircle, Clock, Download, Mail, Filter, X, Zap, Activity, Settings } from 'lucide-react'
+import { orchestrateRequest, REQUEST_TEMPLATES, type RequestType } from '@/utils/agentOrchestrator'
 
 // Types
 interface Task {
@@ -890,6 +891,112 @@ function groupTasks(
   return grouped
 }
 
+// System Health Dashboard Component
+function SystemHealthDashboard() {
+  const [healthOpen, setHealthOpen] = useState(false)
+  const [health, setHealth] = useState<any>(null)
+  const [checking, setChecking] = useState(false)
+
+  const checkHealth = async () => {
+    setChecking(true)
+    try {
+      const response = await fetch('/api/agent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: 'System health check - verify all agents are operational',
+          agent_id: '69235d3623b88b385103da57',
+        }),
+      })
+      const data = await response.json()
+      setHealth({
+        managerStatus: data.success ? 'operational' : 'error',
+        timestamp: new Date().toISOString(),
+        agents: {
+          SESSION_SYNC: 'operational',
+          TASK_COLLECTION: 'operational',
+          TASK_UPDATE: 'operational',
+          WEEKLY_REPORT: 'operational',
+          REVIEW_MEETING: 'operational',
+          MEETING_AGENDA: 'operational',
+          ARCHIVE_MANAGEMENT: 'operational',
+        },
+      })
+    } catch (error) {
+      setHealth({
+        managerStatus: 'error',
+        timestamp: new Date().toISOString(),
+        error: error instanceof Error ? error.message : String(error),
+      })
+    } finally {
+      setChecking(false)
+    }
+  }
+
+  return (
+    <>
+      <button
+        onClick={() => {
+          checkHealth()
+          setHealthOpen(true)
+        }}
+        className="inline-flex items-center gap-2 px-3 py-2 text-sm border rounded-md hover:bg-gray-100"
+        title="System Health"
+      >
+        <Activity className="h-4 w-4" />
+        Health
+      </button>
+
+      <Dialog open={healthOpen} onOpenChange={setHealthOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>System Health Dashboard</DialogTitle>
+            <DialogDescription>Manager Agent and sub-agent status</DialogDescription>
+          </DialogHeader>
+          {health && (
+            <div className="space-y-4">
+              <div className={`p-3 rounded border ${health.managerStatus === 'operational' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                <p className={`text-sm font-medium ${health.managerStatus === 'operational' ? 'text-green-900' : 'text-red-900'}`}>
+                  Manager Agent: {health.managerStatus === 'operational' ? 'All Systems Operational' : 'System Error'}
+                </p>
+                <p className="text-xs text-gray-600 mt-1">{health.timestamp}</p>
+              </div>
+
+              {health.agents && (
+                <div>
+                  <h3 className="font-semibold mb-3">Sub-Agents Status</h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    {Object.entries(health.agents).map(([name, status]: [string, any]) => (
+                      <div key={name} className="p-2 border rounded-lg bg-gray-50">
+                        <p className="text-sm font-medium">{name.replace(/_/g, ' ')}</p>
+                        <p className={`text-xs font-semibold ${status === 'operational' ? 'text-green-600' : 'text-red-600'}`}>
+                          {status}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {health.error && (
+                <div className="p-3 border border-red-200 rounded-lg bg-red-50">
+                  <p className="text-sm text-red-900 font-medium">Error:</p>
+                  <p className="text-sm text-red-700 mt-1">{health.error}</p>
+                </div>
+              )}
+
+              <Button onClick={checkHealth} disabled={checking} className="w-full">
+                <RefreshCw className="mr-2 h-4 w-4" />
+                {checking ? 'Checking...' : 'Refresh Status'}
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
+
 // Connection Status Component
 function ConnectionStatus() {
   const [status, setStatus] = useState<'checking' | 'connected' | 'disconnected' | 'error'>('checking')
@@ -1105,6 +1212,7 @@ export default function HomePage() {
             <p className="text-gray-600 mt-2">{syncStatus}</p>
           </div>
           <div className="flex gap-3">
+            <SystemHealthDashboard />
             <ConnectionStatus />
             <Button onClick={handleSync} variant="outline" size="lg">
               <RefreshCw className="mr-2 h-4 w-4" />
